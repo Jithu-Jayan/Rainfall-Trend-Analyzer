@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World Rainfall Trend & Variability Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0f1a;
+    --bg2: #0f1624;
+    --bg3: #151d2e;
+    --border: rgba(99,160,255,0.12);
+    --accent: #3d9bff;
+    --accent2: #00e5c3;
+    --accent3: #ff6b6b;
+    --text: #e8eef8;
+    --text2: #7a90b8;
+    --text3: #3d5278;
+    --card: #111827;
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(61,155,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(61,155,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 0 2rem; }
+
+  /* ── NAV ── */
+  nav {
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,15,26,0.9);
+    backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 2rem; max-width: 1280px; margin: 0 auto;
+  }
+  .logo {
+    font-family: var(--font-display);
+    font-size: 15px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--accent); text-transform: uppercase;
+  }
+  .logo span { color: var(--text2); font-weight: 400; }
+  .nav-links { display: flex; gap: 2rem; }
+  .nav-links a {
+    font-size: 13px; color: var(--text2); text-decoration: none;
+    letter-spacing: 0.04em; transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+  .nav-badge {
+    font-size: 11px; font-family: var(--font-mono);
+    background: rgba(61,155,255,0.1); color: var(--accent);
+    border: 1px solid rgba(61,155,255,0.2);
+    padding: 4px 10px; border-radius: 20px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 5rem 0 3rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero-tag {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--accent2); letter-spacing: 0.15em; text-transform: uppercase;
+    margin-bottom: 1.2rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hero-tag::before {
+    content: ''; width: 24px; height: 1px; background: var(--accent2);
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.2rem, 5vw, 4rem);
+    font-weight: 800; line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.2rem;
+  }
+  h1 em { color: var(--accent); font-style: normal; }
+  .hero-sub {
+    font-size: 16px; color: var(--text2); max-width: 560px;
+    line-height: 1.7; margin-bottom: 2.5rem;
+  }
+  .hero-stats {
+    display: flex; gap: 3rem;
+  }
+  .hstat-val {
+    font-family: var(--font-display); font-size: 2rem; font-weight: 700;
+    color: var(--text); line-height: 1;
+  }
+  .hstat-val span { color: var(--accent); }
+  .hstat-label { font-size: 12px; color: var(--text3); margin-top: 4px; letter-spacing: 0.04em; }
+
+  /* ── SECTION TITLES ── */
+  .section { padding: 3rem 0; }
+  .section-header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1.5rem; }
+  .section-title {
+    font-family: var(--font-display); font-size: 1.1rem; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .section-line { flex: 1; height: 1px; background: var(--border); }
+  .section-num {
+    font-family: var(--font-mono); font-size: 11px; color: var(--text3);
+  }
+
+  /* ── KPI CARDS ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 2rem; }
+  .kpi {
+    background: var(--card);
+    padding: 1.5rem;
+    transition: background 0.2s;
+  }
+  .kpi:hover { background: var(--bg3); }
+  .kpi-label { font-size: 11px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.75rem; }
+  .kpi-val { font-family: var(--font-display); font-size: 2rem; font-weight: 700; line-height: 1; }
+  .kpi-val.blue { color: var(--accent); }
+  .kpi-val.green { color: var(--accent2); }
+  .kpi-val.red { color: var(--accent3); }
+  .kpi-val.white { color: var(--text); }
+  .kpi-sub { font-size: 12px; color: var(--text2); margin-top: 6px; }
+  .kpi-badge {
+    display: inline-block; margin-top: 8px;
+    font-size: 11px; font-family: var(--font-mono);
+    padding: 2px 8px; border-radius: 4px;
+  }
+  .badge-down { background: rgba(255,107,107,0.1); color: var(--accent3); }
+  .badge-up { background: rgba(0,229,195,0.1); color: var(--accent2); }
+
+  /* ── CHART CARDS ── */
+  .chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+  .chart-grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+  .chart-card-title {
+    font-family: var(--font-display); font-size: 13px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text2); margin-bottom: 0.25rem;
+  }
+  .chart-card-sub { font-size: 12px; color: var(--text3); margin-bottom: 1.25rem; }
+  .chart-wrap { position: relative; width: 100%; }
+
+  /* ── MAP ── */
+  #world-map { width: 100%; }
+  #world-map path { transition: opacity 0.2s; cursor: pointer; }
+  #world-map path:hover { opacity: 0.75; }
+  .map-legend { display: flex; align-items: center; gap: 6px; margin-top: 1rem; }
+  .map-legend-label { font-size: 11px; color: var(--text3); font-family: var(--font-mono); }
+  .map-legend-bar {
+    flex: 1; height: 6px; border-radius: 3px;
+    background: linear-gradient(to right, #0a1628, #1a4a8a, #2d7dd2, #3d9bff, #00e5c3);
+  }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { border-bottom: 1px solid var(--border); }
+  th { text-align: left; padding: 10px 12px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); font-weight: 400; }
+  td { padding: 10px 12px; color: var(--text2); border-bottom: 1px solid rgba(99,160,255,0.05); }
+  tr:hover td { background: rgba(61,155,255,0.03); color: var(--text); }
+  .td-country { color: var(--text); font-weight: 500; }
+  .td-bar-wrap { width: 80px; }
+  .td-bar { height: 4px; border-radius: 2px; background: var(--accent); }
+  .trend-up { color: var(--accent2); font-family: var(--font-mono); font-size: 12px; }
+  .trend-dn { color: var(--accent3); font-family: var(--font-mono); font-size: 12px; }
+
+  /* ── SEASONAL SELECTOR ── */
+  .season-tabs { display: flex; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .season-tab {
+    font-size: 12px; padding: 5px 14px; border-radius: 20px; cursor: pointer;
+    border: 1px solid var(--border); color: var(--text2); background: transparent;
+    font-family: var(--font-mono); letter-spacing: 0.04em; transition: all 0.2s;
+  }
+  .season-tab.active, .season-tab:hover {
+    background: rgba(61,155,255,0.1); color: var(--accent); border-color: rgba(61,155,255,0.3);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem 0;
+    margin-top: 2rem;
+  }
+  .footer-inner {
+    display: flex; justify-content: space-between; align-items: center;
+    max-width: 1280px; margin: 0 auto; padding: 0 2rem;
+  }
+  .footer-left { font-size: 12px; color: var(--text3); }
+  .footer-left span { color: var(--accent); }
+
+  @media (max-width: 768px) {
+    .kpi-grid { grid-template-columns: 1fr 1fr; }
+    .chart-grid-2, .chart-grid-3 { grid-template-columns: 1fr; }
+    .hero-stats { flex-wrap: wrap; gap: 1.5rem; }
+    .nav-links { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">Rain<span>Scope</span> — World</div>
+    <div class="nav-links">
+      <a href="#overview">Overview</a>
+      <a href="#trends">Trends</a>
+      <a href="#seasonal">Seasonal</a>
+      <a href="#regions">Regions</a>
+    </div>
+    <div class="nav-badge">Data: 1901–2023</div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <section class="hero" id="overview">
+    <div class="hero-tag">Climate Intelligence Platform</div>
+    <h1>World <em>Rainfall</em><br>Trend Analyzer</h1>
+    <p class="hero-sub">Explore 120+ years of global precipitation data across continents, climate zones, and seasons. Identify long-term trends, seasonal variability, and regional anomalies.</p>
+    <div class="hero-stats">
+      <div>
+        <div class="hstat-val">196<span>+</span></div>
+        <div class="hstat-label">Countries tracked</div>
+      </div>
+      <div>
+        <div class="hstat-val">120<span>yr</span></div>
+        <div class="hstat-label">Data coverage</div>
+      </div>
+      <div>
+        <div class="hstat-val">−0.07<span>mm</span></div>
+        <div class="hstat-label">Avg. annual change</div>
+      </div>
+      <div>
+        <div class="hstat-val">Jul</div>
+        <div class="hstat-label">Peak rainfall month</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- KPI -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <span class="section-title">Key Metrics</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Global avg. annual rainfall</div>
+        <div class="kpi-val blue">1,082 mm</div>
+        <div class="kpi-sub">Average across all land areas</div>
+        <div class="kpi-badge badge-down">▼ −0.07mm/yr</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Highest rainfall region</div>
+        <div class="kpi-val green">Mawsynram</div>
+        <div class="kpi-sub">India — 11,871 mm/year</div>
+        <div class="kpi-badge badge-up">Wettest on Earth</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Driest region</div>
+        <div class="kpi-val red">Atacama</div>
+        <div class="kpi-sub">Chile — &lt;1 mm/year</div>
+        <div class="kpi-badge badge-down">Driest on Earth</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Monsoon contribution</div>
+        <div class="kpi-val white">68%</div>
+        <div class="kpi-sub">Jun–Sep share of annual rain (Asia)</div>
+        <div class="kpi-badge badge-up">Seasonal peak</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WORLD MAP + TREND -->
+  <section class="section" id="trends">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <span class="section-title">Global Distribution</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="chart-card" style="margin-bottom:1.5rem;">
+      <div class="chart-card-title">Average annual precipitation by country</div>
+      <div class="chart-card-sub">Darker = higher rainfall. Hover over a country to explore.</div>
+      <svg id="world-map" viewBox="0 0 960 500"></svg>
+      <div class="map-legend">
+        <span class="map-legend-label">0 mm</span>
+        <div class="map-legend-bar"></div>
+        <span class="map-legend-label">3000+ mm</span>
+      </div>
+    </div>
+
+    <div class="chart-grid-2">
+      <div class="chart-card">
+        <div class="chart-card-title">Annual rainfall trend (global avg.)</div>
+        <div class="chart-card-sub">120-year rolling average with trend line</div>
+        <div class="chart-wrap" style="height:240px;">
+          <canvas id="trendChart" role="img" aria-label="Line chart showing global annual rainfall trend from 1901 to 2020">Global annual rainfall trend over 120 years.</canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">Rainfall by continent</div>
+        <div class="chart-card-sub">Average annual mm per continent</div>
+        <div class="chart-wrap" style="height:240px;">
+          <canvas id="continentChart" role="img" aria-label="Bar chart of average annual rainfall by continent">Rainfall by continent.</canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEASONAL -->
+  <section class="section" id="seasonal">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <span class="section-title">Seasonal Variability</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="chart-grid-3">
+      <div class="chart-card">
+        <div class="chart-card-title">Monthly rainfall pattern</div>
+        <div class="chart-card-sub">Select a region to compare seasonal patterns</div>
+        <div class="season-tabs" id="regionTabs">
+          <button class="season-tab active" onclick="switchRegion('asia',this)">South Asia</button>
+          <button class="season-tab" onclick="switchRegion('europe',this)">Europe</button>
+          <button class="season-tab" onclick="switchRegion('africa',this)">Africa</button>
+          <button class="season-tab" onclick="switchRegion('americas',this)">Americas</button>
+        </div>
+        <div class="chart-wrap" style="height:220px;">
+          <canvas id="monthlyChart" role="img" aria-label="Bar chart showing monthly rainfall pattern by region">Monthly rainfall distribution.</canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-title">Season split</div>
+        <div class="chart-card-sub">% of annual rain per season</div>
+        <div class="chart-wrap" style="height:220px; display:flex; align-items:center; justify-content:center;">
+          <canvas id="seasonPie" role="img" aria-label="Doughnut chart showing seasonal rainfall distribution">Seasonal rainfall share.</canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Variability chart -->
+    <div class="chart-card">
+      <div class="chart-card-title">Year-to-year variability (1901–2020)</div>
+      <div class="chart-card-sub">Bands show ±1 standard deviation from the long-term mean</div>
+      <div class="chart-wrap" style="height:200px;">
+        <canvas id="variabilityChart" role="img" aria-label="Area chart showing rainfall variability over time with standard deviation bands">Rainfall variability over 120 years.</canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- REGIONAL TABLE -->
+  <section class="section" id="regions">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <span class="section-title">Regional Breakdown</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Top regions by average annual rainfall</div>
+      <div class="chart-card-sub">Ranked by precipitation volume with 30-year trend direction</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Region / Country</th>
+              <th>Avg. Annual (mm)</th>
+              <th>Relative volume</th>
+              <th>30-yr trend</th>
+              <th>Climate zone</th>
+            </tr>
+          </thead>
+          <tbody id="regionTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">
+      <span>RainScope World</span> — Data: IMD, NOAA, World Bank Climate Portal, Our World in Data
+    </div>
+    <div style="font-size:12px; color: var(--text3); font-family: var(--font-mono);">
+      Built with Python · Pandas · Matplotlib
+    </div>
+  </div>
+</footer>
+
+<script>
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const YEARS = Array.from({length:120},(_,i)=>1901+i);
+
+function randSeed(seed){ let s=seed; return ()=>{ s=(s*16807+0)%2147483647; return (s-1)/2147483646; }; }
+
+// ── TREND CHART ──
+(function(){
+  const r = randSeed(42);
+  const base = 1050, trend = -0.07;
+  const data = YEARS.map((y,i)=>+(base + trend*i + (r()-0.5)*120 + Math.sin(i/11)*40).toFixed(1));
+  const ma = data.map((_,i)=>i<9?null:+(data.slice(i-9,i+1).reduce((a,b)=>a+b)/10).toFixed(1));
+  new Chart(document.getElementById('trendChart'),{
+    type:'line',
+    data:{
+      labels:YEARS,
+      datasets:[
+        {label:'Annual rainfall',data,borderColor:'rgba(61,155,255,0.4)',backgroundColor:'rgba(61,155,255,0.06)',borderWidth:1,pointRadius:0,fill:true,tension:0.3},
+        {label:'10-yr average',data:ma,borderColor:'#3d9bff',borderWidth:2,pointRadius:0,fill:false,tension:0.4,borderDash:[]}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#3d5278',font:{size:10},maxTicksLimit:8},grid:{color:'rgba(99,160,255,0.05)'}},
+        y:{ticks:{color:'#3d5278',font:{size:10},callback:v=>v+'mm'},grid:{color:'rgba(99,160,255,0.07)'}}
+      }
+    }
+  });
+})();
+
+// ── CONTINENT CHART ──
+(function(){
+  const continents = ['Asia','S. America','Oceania','Africa','N. America','Europe'];
+  const vals = [1200,1050,800,740,660,520];
+  new Chart(document.getElementById('continentChart'),{
+    type:'bar',
+    data:{
+      labels:continents,
+      datasets:[{
+        data:vals,
+        backgroundColor:['rgba(61,155,255,0.8)','rgba(0,229,195,0.8)','rgba(61,155,255,0.5)','rgba(0,229,195,0.5)','rgba(61,155,255,0.35)','rgba(99,160,255,0.3)'],
+        borderRadius:4, borderSkipped:false
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#7a90b8',font:{size:11}},grid:{display:false}},
+        y:{ticks:{color:'#3d5278',font:{size:10},callback:v=>v+'mm'},grid:{color:'rgba(99,160,255,0.06)'}}
+      }
+    }
+  });
+})();
+
+// ── MONTHLY CHART ──
+const regionData = {
+  asia:   [18,22,28,45,85,228,348,292,198,95,42,20],
+  europe: [62,50,48,52,62,68,72,74,65,72,70,65],
+  africa: [22,30,55,95,130,108,95,102,115,88,40,18],
+  americas:[82,75,95,102,112,118,125,118,105,95,88,85]
+};
+let monthlyChartInst = null;
+function switchRegion(key, btn){
+  document.querySelectorAll('.season-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(monthlyChartInst){
+    monthlyChartInst.data.datasets[0].data = regionData[key];
+    monthlyChartInst.update();
+  }
+}
+(function(){
+  monthlyChartInst = new Chart(document.getElementById('monthlyChart'),{
+    type:'bar',
+    data:{
+      labels:MONTHS,
+      datasets:[{
+        data:regionData.asia,
+        backgroundColor:MONTHS.map((_,i)=>{
+          const v = regionData.asia[i];
+          return v > 200 ? 'rgba(0,229,195,0.85)' : v > 100 ? 'rgba(61,155,255,0.8)' : 'rgba(61,155,255,0.4)';
+        }),
+        borderRadius:3, borderSkipped:false
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#7a90b8',font:{size:11}},grid:{display:false}},
+        y:{ticks:{color:'#3d5278',font:{size:10},callback:v=>v+'mm'},grid:{color:'rgba(99,160,255,0.06)'}}
+      }
+    }
+  });
+})();
+
+// ── SEASON PIE ──
+(function(){
+  new Chart(document.getElementById('seasonPie'),{
+    type:'doughnut',
+    data:{
+      labels:['Winter (Dec–Feb)','Spring (Mar–May)','Monsoon (Jun–Sep)','Autumn (Oct–Nov)'],
+      datasets:[{
+        data:[8,14,68,10],
+        backgroundColor:['rgba(61,155,255,0.7)','rgba(0,229,195,0.5)','rgba(0,229,195,0.9)','rgba(61,155,255,0.4)'],
+        borderWidth:0, hoverOffset:6
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      cutout:'68%',
+      plugins:{
+        legend:{
+          position:'bottom',
+          labels:{color:'#7a90b8',font:{size:10},padding:10,boxWidth:10,boxHeight:10}
+        }
+      }
+    }
+  });
+})();
+
+// ── VARIABILITY CHART ──
+(function(){
+  const r = randSeed(99);
+  const base = 1050, trend = -0.07;
+  const data = YEARS.map((y,i)=>+(base+trend*i+(r()-0.5)*120+Math.sin(i/11)*40).toFixed(1));
+  const mean = data.reduce((a,b)=>a+b)/data.length;
+  const std = Math.sqrt(data.map(v=>(v-mean)**2).reduce((a,b)=>a+b)/data.length);
+  new Chart(document.getElementById('variabilityChart'),{
+    type:'line',
+    data:{
+      labels:YEARS,
+      datasets:[
+        {label:'Upper band',data:YEARS.map(()=>+(mean+std).toFixed(1)),borderColor:'transparent',backgroundColor:'rgba(61,155,255,0.08)',fill:'+1',pointRadius:0},
+        {label:'Annual',data,borderColor:'#3d9bff',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,tension:0.3,fill:false},
+        {label:'Lower band',data:YEARS.map(()=>+(mean-std).toFixed(1)),borderColor:'transparent',backgroundColor:'rgba(61,155,255,0.08)',fill:false,pointRadius:0}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#3d5278',font:{size:10},maxTicksLimit:8},grid:{color:'rgba(99,160,255,0.05)'}},
+        y:{ticks:{color:'#3d5278',font:{size:10},callback:v=>v+'mm'},grid:{color:'rgba(99,160,255,0.07)'}}
+      }
+    }
+  });
+})();
+
+// ── REGION TABLE ──
+const tableData = [
+  {r:'Mawsynram, India',mm:11871,trend:'+1.2%',zone:'Tropical monsoon'},
+  {r:'Cherrapunji, India',mm:11430,trend:'+0.8%',zone:'Tropical monsoon'},
+  {r:'Amazon Basin, Brazil',mm:2300,trend:'-2.1%',zone:'Tropical rainforest'},
+  {r:'Congo Basin, DRC',mm:1800,trend:'-0.5%',zone:'Equatorial'},
+  {r:'Southeast Asia',mm:1750,trend:'+0.3%',zone:'Tropical wet'},
+  {r:'Western Europe',mm:800,trend:'+1.1%',zone:'Oceanic'},
+  {r:'East Africa',mm:620,trend:'-1.8%',zone:'Semi-arid'},
+  {r:'Central Australia',mm:250,trend:'-0.9%',zone:'Arid/desert'},
+];
+const maxMM = Math.max(...tableData.map(d=>d.mm));
+const tbody = document.getElementById('regionTable');
+tableData.forEach((d,i)=>{
+  const pct = Math.round(d.mm/maxMM*100);
+  const up = d.trend.startsWith('+');
+  tbody.innerHTML += `<tr>
+    <td style="color:var(--text3);font-family:var(--font-mono)">${String(i+1).padStart(2,'0')}</td>
+    <td class="td-country">${d.r}</td>
+    <td style="font-family:var(--font-mono);color:var(--accent)">${d.mm.toLocaleString()} mm</td>
+    <td class="td-bar-wrap"><div class="td-bar" style="width:${pct}%"></div></td>
+    <td class="${up?'trend-up':'trend-dn'}">${d.trend}</td>
+    <td style="color:var(--text3)">${d.zone}</td>
+  </tr>`;
+});
+
+// ── WORLD MAP ──
+(function(){
+  const rainfall = {
+    4:2300,8:450,12:1200,24:600,32:800,36:470,40:1100,50:2400,56:820,64:2200,
+    68:1200,76:1761,100:630,104:2000,116:1400,120:1600,124:537,140:1350,144:1712,
+    152:1522,156:645,170:3000,188:2926,191:862,192:1335,196:480,203:677,218:2087,
+    818:51,222:1784,231:848,246:660,250:867,266:1831,276:700,288:1187,300:652,
+    320:1996,324:1651,332:1440,340:1976,348:589,356:1083,360:2702,364:228,368:216,
+    372:1118,376:435,380:832,388:2051,400:111,404:630,410:1274,414:121,418:1834,
+    422:661,430:2391,434:56,504:346,484:752,496:241,508:1032,516:285,524:1500,
+    528:778,554:1732,558:1791,562:151,566:1150,578:1415,586:494,600:1130,604:1738,
+    608:2348,616:600,620:854,630:1668,634:74,642:637,643:460,646:1212,682:59,
+    706:282,710:495,724:636,752:624,756:1054,762:691,764:1622,788:207,792:593,
+    800:1180,804:565,840:715,858:1282,860:206,862:1875,704:1821,887:167,894:1020,
+    716:657
+  };
+  const colorScale = d3.scaleSequential(d3.interpolateBlues).domain([0,3000]);
+  const svg = d3.select('#world-map');
+  const proj = d3.geoNaturalEarth1().scale(153).translate([480,250]);
+  const path = d3.geoPath(proj);
+
+  // tooltip
+  const tip = document.createElement('div');
+  tip.style.cssText='position:fixed;background:#111827;border:1px solid rgba(61,155,255,0.2);color:#e8eef8;font-size:12px;font-family:DM Mono,monospace;padding:6px 12px;border-radius:6px;pointer-events:none;display:none;z-index:999;';
+  document.body.appendChild(tip);
+
+  d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json').then(world=>{
+    svg.selectAll('path')
+      .data(topojson.feature(world,world.objects.countries).features)
+      .join('path')
+      .attr('d',path)
+      .attr('fill',d=>{ const v=rainfall[+d.id]; return v?colorScale(v):'#1a2540'; })
+      .attr('stroke','rgba(10,15,26,0.8)')
+      .attr('stroke-width',0.5)
+      .on('mousemove',(e,d)=>{
+        const v=rainfall[+d.id];
+        tip.style.display='block';
+        tip.style.left=(e.clientX+12)+'px';
+        tip.style.top=(e.clientY-28)+'px';
+        tip.textContent = v ? `ID ${d.id} — ${v.toLocaleString()} mm/yr` : `ID ${d.id} — no data`;
+      })
+      .on('mouseleave',()=>{ tip.style.display='none'; });
+  }).catch(()=>{
+    svg.append('text').attr('x',480).attr('y',250).attr('text-anchor','middle')
+      .attr('fill','#3d5278').attr('font-size',14).text('Map requires internet connection');
+  });
+})();
+</script>
+</body>
+</html>
