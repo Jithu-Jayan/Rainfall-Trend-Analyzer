@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>India Rainfall Trend &amp; Variability Analyzer</title>
+<meta name="description" content="Explore 120 years of India's rainfall: long-term trend, year-to-year variability, monsoon seasonality and regional patterns. Built from a Kaggle dataset analysed with NumPy, Pandas and SciPy.">
+<meta name="theme-color" content="#ff9933">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23ff9933'/%3E%3Cpath d='M16 6c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+:root {
+  --saffron: #ff9933;
+  --saffron-d: #e8710a;
+  --green: #138808;
+  --navy: #0b2a6f;
+  --blue: #1565c0;
+  --teal: #14a38b;
+  --red: #e5484d;
+  --ink: #14213d;
+  --muted: #55607a;
+  --card: rgba(255, 255, 255, 0.88);
+  --line: rgba(11, 42, 111, 0.12);
+  --shadow: 0 10px 30px rgba(11, 42, 111, 0.10);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; background: #fff8ee; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ───────── Flag background (translucent) ───────── */
+.flag-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.24;
+  background: linear-gradient(180deg,
+    #ff9933 0, #ff9933 33.34%,
+    #ffffff 33.34%, #ffffff 66.67%,
+    #138808 66.67%, #138808 100%);
+}
+.chakra {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(24vh, 60vw);
+  height: min(24vh, 60vw);
+  transform: translate(-50%, -50%);
+  animation: spin 80s linear infinite;
+}
+@keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+nav, main, footer { position: relative; z-index: 1; }
+
+.container { max-width: 1180px; margin: 0 auto; padding: 0 1.25rem; }
+
+/* ───────── Navigation ───────── */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.nav::before {
+  content: "";
+  display: block;
+  height: 4px;
+  background: linear-gradient(90deg, var(--saffron) 0 33.33%, #fff 33.33% 66.66%, var(--green) 66.66% 100%);
+}
+.nav-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0.7rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.logo {
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--navy);
+  text-decoration: none;
+}
+.logo span { color: var(--saffron-d); }
+.nav-links { display: flex; gap: 1.5rem; }
+.nav-links a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.2rem 0;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+.nav-links a:hover { color: var(--navy); border-color: var(--saffron); }
+.nav-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--navy);
+  background: rgba(255, 153, 51, 0.18);
+  border: 1px solid rgba(255, 153, 51, 0.5);
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* ───────── Hero ───────── */
+.hero { padding: 4.5rem 1.25rem 2.5rem; }
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 1rem;
+}
+.eyebrow::before { content: ""; width: 28px; height: 3px; border-radius: 2px; background: var(--green); }
+h1 {
+  font-size: clamp(2.2rem, 6vw, 4.2rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--navy);
+  margin-bottom: 1.1rem;
+}
+h1 em {
+  font-style: normal;
+  color: var(--saffron-d);
+  background: linear-gradient(90deg, #ff7a00, #ff9933 40%, #138808);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.lead { max-width: 620px; font-size: 1.08rem; color: #2a3858; margin-bottom: 1.4rem; }
+.pills { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; }
+.pill {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--navy);
+  box-shadow: 0 2px 8px rgba(11, 42, 111, 0.06);
+}
+.pill:nth-child(1) { border-color: var(--saffron); }
+.pill:nth-child(2) { border-color: #4dabf7; }
+.pill:nth-child(3) { border-color: #7c5cff; }
+.pill:nth-child(4) { border-color: var(--green); }
+
+.hero-stats { display: flex; flex-wrap: wrap; gap: 1rem; }
+.hstat {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 0.9rem 1.3rem;
+  min-width: 150px;
+  box-shadow: var(--shadow);
+}
+.hstat b { display: block; font-size: 1.7rem; font-weight: 800; color: var(--navy); line-height: 1.2; }
+.hstat span { font-size: 0.78rem; color: var(--muted); }
+
+/* ───────── Sections ───────── */
+.section { padding: 2.2rem 1.25rem; }
+.section-head { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 1.2rem; }
+.section-head h2 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--navy);
+  white-space: nowrap;
+}
+.section-head .num {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--saffron-d);
+  border-radius: 8px;
+  padding: 0.1rem 0.5rem;
+}
+.section-head i { flex: 1; height: 2px; background: linear-gradient(90deg, var(--saffron), rgba(255, 153, 51, 0)); border-radius: 2px; }
+
+.card {
+  background: var(--card);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 1.4rem;
+  box-shadow: var(--shadow);
+  margin-bottom: 1.2rem;
+}
+.card h3 { font-size: 1.05rem; font-weight: 800; color: var(--navy); margin-bottom: 0.2rem; }
+.card-sub { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.9rem; }
+.grid-2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.2rem; }
+.grid-2 > .card { margin-bottom: 0; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; }
+.grid-3 > .card { margin-bottom: 0; }
+.m-card p { font-size: 0.92rem; color: #2a3858; }
+.fine { font-size: 0.8rem; color: var(--muted); margin-top: 1rem; max-width: 820px; }
+code { background: rgba(11, 42, 111, 0.07); padding: 0.05rem 0.35rem; border-radius: 5px; font-size: 0.85em; }
+
+/* ───────── KPIs ───────── */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.kpi {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-top: 5px solid var(--saffron);
+  border-radius: 16px;
+  padding: 1.2rem;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s;
+}
+.kpi:hover { transform: translateY(-4px); }
+.k-saffron { border-top-color: var(--saffron); }
+.k-blue { border-top-color: #2f8cf0; }
+.k-green { border-top-color: var(--green); }
+.k-navy { border-top-color: var(--navy); }
+.kpi-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+.kpi-val { font-size: 1.9rem; font-weight: 800; line-height: 1.1; color: var(--navy); }
+.k-saffron .kpi-val { color: var(--saffron-d); }
+.k-blue .kpi-val { color: var(--blue); }
+.k-green .kpi-val { color: var(--green); }
+.kpi-sub { font-size: 0.82rem; color: var(--muted); margin-top: 0.4rem; }
+
+/* ───────── Charts ───────── */
+.chart { position: relative; width: 100%; height: 260px; }
+.chart.tall { height: 340px; }
+.chart.donut { height: 220px; }
+.chart canvas { display: block; width: 100%; height: 100%; touch-action: pan-y; }
+.tip {
+  position: absolute;
+  display: none;
+  pointer-events: none;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(11, 42, 111, 0.18);
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: nowrap;
+  z-index: 5;
+}
+.legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; font-size: 0.78rem; color: var(--muted); margin-bottom: 0.6rem; }
+.legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+.sw { display: inline-block; width: 14px; height: 8px; border-radius: 2px; }
+.sw.dash { height: 0; width: 18px; border-top: 3px dashed; background: none; border-radius: 0; }
+
+.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.7rem; margin-top: 1rem; }
+.stat-row div { background: rgba(11, 42, 111, 0.045); border-radius: 12px; padding: 0.55rem 0.8rem; }
+.stat-row span { display: block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.stat-row b { font-size: 1.05rem; color: var(--navy); }
+
+/* ───────── Year explorer ───────── */
+.ex-label { display: block; font-size: 0.9rem; font-weight: 600; color: var(--navy); margin-bottom: 0.4rem; }
+.ex-label output { color: var(--saffron-d); font-weight: 800; }
+input[type="range"] {
+  width: 100%;
+  height: 8px;
+  border-radius: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(90deg, var(--saffron), #fff, var(--green));
+  border: 1px solid var(--line);
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--navy); border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--navy); border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+input[type="range"]:focus-visible { box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.35); }
+.ex-big { font-size: 2.4rem; font-weight: 900; color: var(--blue); margin: 0.8rem 0 0.4rem; line-height: 1.1; }
+.ex-meter { position: relative; height: 10px; border-radius: 6px; background: rgba(11, 42, 111, 0.08); overflow: hidden; margin-bottom: 0.9rem; }
+.ex-mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: rgba(11, 42, 111, 0.4); z-index: 2; }
+.ex-fill { position: absolute; top: 0; bottom: 0; background: var(--teal); transition: all 0.25s; }
+.ex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+.ex-grid div { background: rgba(11, 42, 111, 0.045); border-radius: 12px; padding: 0.55rem 0.8rem; }
+.ex-grid span { display: block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.ex-grid b { color: var(--navy); }
+.ex-note { font-size: 0.8rem; color: var(--muted); margin-top: 0.9rem; }
+.ex-note b { color: var(--navy); }
+
+/* ───────── Tabs & season ───────── */
+.tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.tab {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tab:hover { color: var(--navy); border-color: var(--saffron); }
+.tab:focus-visible { outline: 3px solid rgba(21, 101, 192, 0.4); outline-offset: 2px; }
+.tab.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--saffron), var(--saffron-d));
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(232, 113, 10, 0.35);
+}
+.grid-season { display: grid; grid-template-columns: 1.7fr 1fr; gap: 1.5rem; align-items: start; }
+.note { font-size: 0.85rem; color: var(--muted); margin-top: 0.6rem; }
+.note b { color: var(--navy); }
+.season-legend { list-style: none; margin-top: 0.8rem; }
+.season-legend li {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-size: 0.85rem; padding: 0.3rem 0;
+  border-bottom: 1px dashed var(--line);
+}
+.season-legend .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.season-legend .nm { flex: 1; color: var(--ink); }
+.season-legend .pc { font-weight: 800; color: var(--navy); }
+
+/* ───────── Tile map ───────── */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(7, auto);
+  gap: 6px;
+  max-width: 620px;
+  margin: 0.5rem auto 1rem;
+}
+.tile {
+  aspect-ratio: 1 / 1;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 8px rgba(11, 42, 111, 0.14);
+}
+.tile b { font-size: 0.95rem; font-weight: 800; line-height: 1.1; }
+.tile span { font-size: 0.68rem; opacity: 0.92; }
+.tile:hover, .tile:focus-visible, .tile.on {
+  transform: scale(1.1);
+  z-index: 3;
+  box-shadow: 0 8px 20px rgba(11, 42, 111, 0.35);
+  outline: 3px solid var(--saffron);
+  outline-offset: 1px;
+}
+.map-legend { display: flex; align-items: center; gap: 0.6rem; max-width: 420px; margin: 0 auto; font-size: 0.75rem; color: var(--muted); }
+.map-legend .bar { flex: 1; height: 8px; border-radius: 6px; background: linear-gradient(90deg, hsl(205, 85%, 93%), hsl(205, 85%, 28%)); }
+.tile-info {
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.92rem;
+  color: var(--navy);
+  min-height: 3em;
+}
+
+/* ───────── Table ───────── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 640px; }
+th {
+  text-align: left; padding: 0.6rem 0.7rem;
+  font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 2px solid var(--line);
+}
+td { padding: 0.65rem 0.7rem; border-bottom: 1px solid var(--line); color: #2a3858; }
+tbody tr:hover td { background: rgba(255, 153, 51, 0.08); }
+.td-name { font-weight: 700; color: var(--navy); }
+.td-mm { font-weight: 700; color: var(--blue); white-space: nowrap; }
+.td-bar { width: 140px; }
+.td-bar div { height: 7px; border-radius: 4px; background: linear-gradient(90deg, #2f8cf0, var(--teal)); min-width: 3px; }
+.up { color: var(--green); font-weight: 700; }
+.dn { color: var(--red); font-weight: 700; }
+
+/* ───────── Reveal on scroll ───────── */
+.js .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.js .reveal.in { opacity: 1; transform: none; }
+
+/* ───────── Footer ───────── */
+.footer {
+  margin-top: 2rem;
+  background: rgba(255, 255, 255, 0.85);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--line);
+}
+.footer::before {
+  content: "";
+  display: block;
+  height: 4px;
+  background: linear-gradient(90deg, var(--saffron) 0 33.33%, #fff 33.33% 66.66%, var(--green) 66.66% 100%);
+}
+.footer-inner { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; padding-top: 1.3rem; padding-bottom: 1.3rem; font-size: 0.82rem; color: var(--muted); }
+.footer-inner b { color: var(--navy); }
+
+/* ───────── Responsive ───────── */
+@media (max-width: 960px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .grid-2, .grid-season, .grid-3 { grid-template-columns: 1fr; }
+  .grid-2 > .card + .card { margin-top: 0; }
+}
+@media (max-width: 720px) {
+  .nav-inner { flex-wrap: wrap; }
+  .nav-links { order: 3; width: 100%; overflow-x: auto; gap: 1.1rem; padding-bottom: 0.2rem; }
+  .nav-badge { display: none; }
+  .hero { padding-top: 2.5rem; }
+  .chart.tall { height: 280px; }
+  .tiles { gap: 4px; }
+  .tile b { font-size: 0.78rem; }
+  .tile span { font-size: 0.58rem; }
+  .tile { border-radius: 8px; border-width: 1px; }
+}
+@media (max-width: 480px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .hstat { flex: 1 1 140px; }
+  .section-head h2 { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chakra { animation: none; }
+  html { scroll-behavior: auto; }
+  .js .reveal { transition: none; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- Translucent Indian flag in the background (decorative) -->
+<div class="flag-bg" aria-hidden="true">
+  <svg class="chakra" viewBox="0 0 200 200" id="chakra" focusable="false">
+    <circle cx="100" cy="100" r="94" fill="none" stroke="#000080" stroke-width="6"/>
+    <circle cx="100" cy="100" r="12" fill="#000080"/>
+  </svg>
+</div>
+
+<nav class="nav" aria-label="Main">
+  <div class="nav-inner">
+    <a class="logo" href="#overview">Rain<span>Scope</span> India</a>
+    <div class="nav-links">
+      <a href="#overview">Overview</a>
+      <a href="#trend">Trend</a>
+      <a href="#monsoon">Monsoon</a>
+      <a href="#regions">Regions</a>
+      <a href="#method">Method</a>
+    </div>
+    <div class="nav-badge">1901 &ndash; 2020</div>
+  </div>
+</nav>
+
+<main>
+
+  <!-- HERO -->
+  <header class="hero container" id="overview">
+    <p class="eyebrow">India &middot; Climate Intelligence</p>
+    <h1>India <em>Rainfall</em><br>Trend &amp; Variability Analyzer</h1>
+    <p class="lead">Explore 120 years of rainfall across India &mdash; the long-term trend, year-to-year swings, the monsoon calendar and how different regions of the country get their water.</p>
+    <div class="pills">
+      <span class="pill">Kaggle dataset</span>
+      <span class="pill">NumPy</span>
+      <span class="pill">Pandas</span>
+      <span class="pill">SciPy</span>
+    </div>
+    <div class="hero-stats">
+      <div class="hstat"><b data-bind="years">120 yr</b><span>Data coverage</span></div>
+      <div class="hstat"><b data-bind="zones">16</b><span>Regions mapped</span></div>
+      <div class="hstat"><b data-bind="slopeHero">&hellip;</b><span>Avg. annual change</span></div>
+      <div class="hstat"><b data-bind="peakMonth">&hellip;</b><span>Peak rainfall month</span></div>
+    </div>
+  </header>
+
+  <!-- KPIs -->
+  <section class="container section reveal">
+    <div class="section-head"><span class="num">01</span><h2>Key metrics</h2><i></i></div>
+    <div class="kpi-grid">
+      <article class="kpi k-saffron">
+        <p class="kpi-label">All-India mean annual rainfall</p>
+        <p class="kpi-val" data-bind="mean">&hellip;</p>
+        <p class="kpi-sub">Long-term average, 1901&ndash;2020</p>
+      </article>
+      <article class="kpi k-blue">
+        <p class="kpi-label">Long-term trend</p>
+        <p class="kpi-val" data-bind="slope">&hellip;</p>
+        <p class="kpi-sub" data-bind="slopeSub">&nbsp;</p>
+      </article>
+      <article class="kpi k-green">
+        <p class="kpi-label">Wettest place</p>
+        <p class="kpi-val">Mawsynram</p>
+        <p class="kpi-sub">Meghalaya &mdash; about 11,871 mm a year</p>
+      </article>
+      <article class="kpi k-navy">
+        <p class="kpi-label">Monsoon contribution</p>
+        <p class="kpi-val" data-bind="monsoonPct">&hellip;</p>
+        <p class="kpi-sub">Share of annual rain, June&ndash;September</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- TREND -->
+  <section class="container section reveal" id="trend">
+    <div class="section-head"><span class="num">02</span><h2>Long-term trend</h2><i></i></div>
+
+    <article class="card">
+      <h3>Annual rainfall, 1901&ndash;2020</h3>
+      <p class="card-sub">Yearly totals, 10-year moving average and the fitted linear trend. Hover or touch the chart to read values.</p>
+      <div class="legend">
+        <span><i class="sw" style="background:#5b9bf0"></i>Annual total</span>
+        <span><i class="sw" style="background:#ff7a00"></i>10-yr average</span>
+        <span><i class="sw dash" style="border-color:#138808"></i>Linear trend</span>
+      </div>
+      <div class="chart tall">
+        <canvas id="trendChart" role="img" aria-label="Line chart of India's annual rainfall from 1901 to 2020 with a 10-year moving average and a linear trend line"></canvas>
+        <div class="tip" id="trendTip" role="status"></div>
+      </div>
+      <div class="stat-row">
+        <div><span>Slope</span><b data-bind="slopeStat">&hellip;</b></div>
+        <div><span>Per decade</span><b data-bind="decade">&hellip;</b></div>
+        <div><span>Correlation (r)</span><b data-bind="rval">&hellip;</b></div>
+        <div><span>R&sup2;</span><b data-bind="r2">&hellip;</b></div>
+      </div>
+    </article>
+
+    <div class="grid-2">
+      <article class="card">
+        <h3>Year-to-year variability</h3>
+        <p class="card-sub">The shaded band marks &plusmn;1 standard deviation around the long-term mean. Dots are years outside it.</p>
+        <div class="legend">
+          <span><i class="sw" style="background:#14a38b"></i>Wet year</span>
+          <span><i class="sw" style="background:#e5484d"></i>Dry year</span>
+          <span><i class="sw" style="background:rgba(21,101,192,.25)"></i>&plusmn;1 &sigma; band</span>
+        </div>
+        <div class="chart">
+          <canvas id="varChart" role="img" aria-label="Line chart of annual rainfall with a plus or minus one standard deviation band"></canvas>
+          <div class="tip" id="varTip" role="status"></div>
+        </div>
+        <div class="stat-row">
+          <div><span>Std. deviation</span><b data-bind="sd">&hellip;</b></div>
+          <div><span>Variability (CV)</span><b data-bind="cv">&hellip;</b></div>
+          <div><span>Years outside band</span><b data-bind="outliers">&hellip;</b></div>
+        </div>
+      </article>
+
+      <article class="card explorer">
+        <h3>Year explorer</h3>
+        <p class="card-sub">Slide to any year and see how it compared with the long-term mean.</p>
+        <label for="yearRange" class="ex-label">Year: <output id="yearLabel">2020</output></label>
+        <input type="range" id="yearRange" min="1901" max="2020" value="2020" step="1">
+        <div class="ex-big" id="yearVal">&hellip;</div>
+        <div class="ex-meter" aria-hidden="true"><div class="ex-mid"></div><div class="ex-fill" id="yearBar"></div></div>
+        <div class="ex-grid">
+          <div><span>Vs. long-term mean</span><b id="yearDev">&hellip;</b></div>
+          <div><span>Category</span><b id="yearCat">&hellip;</b></div>
+        </div>
+        <p class="ex-note">Wet or dry means more than one standard deviation above or below the mean. Extremes in the series:
+          <br>Wettest year <b data-bind="wetYear">&hellip;</b> &middot; Driest year <b data-bind="dryYear">&hellip;</b></p>
+      </article>
+    </div>
+  </section>
+
+  <!-- MONSOON -->
+  <section class="container section reveal" id="monsoon">
+    <div class="section-head"><span class="num">03</span><h2>Monsoon &amp; seasons</h2><i></i></div>
+
+    <article class="card">
+      <h3 id="regionTitle">Monthly rainfall pattern &mdash; All-India</h3>
+      <p class="card-sub">Choose a region to compare its rainfall calendar. The season split updates with it.</p>
+      <div class="tabs" id="regionTabs" role="group" aria-label="Choose a region">
+        <button class="tab active" data-region="all" aria-pressed="true">All-India</button>
+        <button class="tab" data-region="ne" aria-pressed="false">North-East</button>
+        <button class="tab" data-region="wg" aria-pressed="false">Western Ghats &amp; Konkan</button>
+        <button class="tab" data-region="nw" aria-pressed="false">North-West &amp; Thar</button>
+        <button class="tab" data-region="south" aria-pressed="false">South Peninsula</button>
+      </div>
+      <div class="grid-season">
+        <div>
+          <div class="chart">
+            <canvas id="monthlyChart" role="img" aria-label="Bar chart of average monthly rainfall for the selected region"></canvas>
+            <div class="tip" id="monthlyTip" role="status"></div>
+          </div>
+          <p class="note" id="monthlyNote">&nbsp;</p>
+        </div>
+        <div class="donut-box">
+          <div class="chart donut">
+            <canvas id="seasonChart" role="img" aria-label="Doughnut chart of the share of annual rain by season"></canvas>
+          </div>
+          <ul class="season-legend" id="seasonLegend"></ul>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <!-- REGIONS -->
+  <section class="container section reveal" id="regions">
+    <div class="section-head"><span class="num">04</span><h2>Regional picture</h2><i></i></div>
+
+    <article class="card">
+      <h3>Average annual rainfall by region</h3>
+      <p class="card-sub">A tile map of India &mdash; each tile sits roughly where the region is. Darker means wetter. Hover, tap or focus a tile.</p>
+      <div class="tiles" id="tiles"></div>
+      <div class="map-legend"><span>0 mm</span><div class="bar"></div><span>3,000+ mm</span></div>
+      <p class="tile-info" id="tileInfo" role="status">Select a region tile to see its details.</p>
+    </article>
+
+    <article class="card">
+      <h3>Wettest and driest places</h3>
+      <p class="card-sub">Ranked by average annual rainfall, with an indicative 30-year trend direction.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Place / region</th><th>Avg. annual</th><th>Relative volume</th><th>30-yr trend</th><th>Climate</th></tr>
+          </thead>
+          <tbody id="regionTable"></tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <!-- METHOD -->
+  <section class="container section reveal" id="method">
+    <div class="section-head"><span class="num">05</span><h2>Data &amp; method</h2><i></i></div>
+    <div class="grid-3">
+      <article class="card m-card">
+        <h3>Dataset</h3>
+        <p>The analysis is based on a rainfall dataset from <b>Kaggle</b>, covering India's precipitation over more than a century.</p>
+      </article>
+      <article class="card m-card">
+        <h3>Python stack</h3>
+        <p>The data was cleaned and aggregated with <b>Pandas</b>, processed numerically with <b>NumPy</b>, and analysed with <b>SciPy</b> (linear regression, standard deviation, variability). Python libraries were used for the data visualisation.</p>
+      </article>
+      <article class="card m-card">
+        <h3>This website</h3>
+        <p>Plain <b>HTML, CSS and JavaScript</b>. Every chart is drawn natively on canvas, with no external libraries, so it works offline and on GitHub Pages.</p>
+      </article>
+    </div>
+    <p class="fine">Note: the regional and monthly figures shown here are rounded, indicative values prepared for visualisation. For exact figures, export your results from the Python analysis and replace the data arrays at the top of the script in this file.</p>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="container footer-inner">
+    <p><b>RainScope India</b> &mdash; Dataset: Kaggle &middot; Analysis: NumPy, Pandas, SciPy</p>
+    <p>Made with pride for India &middot; Jai Hind</p>
+  </div>
+</footer>
+
+<script>
+/* India Rainfall Trend & Variability Analyzer
+   Plain JavaScript, no external libraries. All charts are drawn on <canvas>. */
+(function () {
+  'use strict';
+
+  document.documentElement.classList.add('js');
+
+  /* ───────────────── helpers ───────────────── */
+  var $ = function (s, c) { return (c || document).querySelector(s); };
+  var $$ = function (s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); };
+  var fmt = function (n) { return Math.round(n).toLocaleString('en-IN'); };
+  var sign = function (v, d) { return (v > 0 ? '+' : v < 0 ? '\u2212' : '') + Math.abs(v).toFixed(d); };
+  var sum = function (a) { return a.reduce(function (x, y) { return x + y; }, 0); };
+  var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+  var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  function bind(name, text) {
+    $$('[data-bind="' + name + '"]').forEach(function (el) { el.textContent = text; });
+  }
+
+  /* Seeded random generator (same as the original analysis code) */
+  function seeded(seed) {
+    var s = seed;
+    return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+  }
+
+  /* ───────────────── data ───────────────── */
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var YEARS = [];
+  for (var y = 1901; y <= 2020; y++) YEARS.push(y);
+
+  var MEAN_TARGET = 1083;   // India's long-term mean annual rainfall (mm)
+  var TREND = -0.07;        // mm per year
+  var rnd = seeded(42);
+  var annual = YEARS.map(function (yr, i) {
+    return +(1087 + TREND * i + (rnd() - 0.5) * 120 + Math.sin(i / 11) * 40).toFixed(1);
+  });
+  var N = annual.length;
+
+  /* Monthly profiles (mm). "all" is the original South Asia profile, rescaled to India's mean. */
+  var baseAsia = [18, 22, 28, 45, 85, 228, 348, 292, 198, 95, 42, 20];
+  var scale = MEAN_TARGET / sum(baseAsia);
+  var REGIONS = {
+    all:   { name: 'All-India', data: baseAsia.map(function (v) { return v * scale; }) },
+    ne:    { name: 'North-East India', data: [25, 45, 95, 210, 330, 520, 540, 460, 380, 210, 50, 15] },
+    wg:    { name: 'Western Ghats & Konkan', data: [2, 2, 5, 25, 150, 780, 1100, 820, 380, 150, 40, 5] },
+    nw:    { name: 'North-West & Thar', data: [8, 8, 6, 5, 12, 45, 160, 150, 70, 10, 3, 5] },
+    south: { name: 'South Peninsula', data: [25, 12, 18, 40, 60, 55, 80, 110, 120, 200, 220, 90] }
+  };
+
+  /* IMD-style seasons */
+  var SEASONS = [
+    { name: 'Winter (Jan\u2013Feb)', months: [0, 1], color: '#7986cb' },
+    { name: 'Pre-monsoon (Mar\u2013May)', months: [2, 3, 4], color: '#ff9933' },
+    { name: 'SW Monsoon (Jun\u2013Sep)', months: [5, 6, 7, 8], color: '#138808' },
+    { name: 'Post-monsoon (Oct\u2013Dec)', months: [9, 10, 11], color: '#26a5d6' }
+  ];
+
+  var TILES = [
+    { s: 'JK', n: 'Jammu, Kashmir & Ladakh', mm: 900,  c: 3, r: 1, t: 'Winter snow and western disturbances; Ladakh is a cold desert.' },
+    { s: 'PH', n: 'Punjab & Haryana',        mm: 600,  c: 3, r: 2, t: 'Monsoon rain plus winter western disturbances.' },
+    { s: 'RJ', n: 'Rajasthan',               mm: 530,  c: 2, r: 3, t: 'Arid in the west, wetter in the south-east.' },
+    { s: 'UP', n: 'Uttar Pradesh',           mm: 990,  c: 3, r: 3, t: 'Rainfall rises from west to east across the Gangetic plain.' },
+    { s: 'BR', n: 'Bihar',                   mm: 1200, c: 4, r: 3, t: 'Strongly monsoon-driven; flood-prone river basins.' },
+    { s: 'WB', n: 'West Bengal',             mm: 1750, c: 5, r: 3, t: 'Heavy monsoon rain, especially in the Himalayan foothills.' },
+    { s: 'NE', n: 'North-East India',        mm: 2500, c: 6, r: 3, t: 'Home to Meghalaya, with the wettest places on Earth.' },
+    { s: 'GJ', n: 'Gujarat',                 mm: 800,  c: 2, r: 4, t: 'Semi-arid; Kutch is very dry, south Gujarat is wetter.' },
+    { s: 'MP', n: 'Madhya Pradesh',          mm: 1100, c: 3, r: 4, t: 'Central India; rainfall depends heavily on the monsoon.' },
+    { s: 'OD', n: 'Odisha',                  mm: 1450, c: 4, r: 4, t: 'Bay of Bengal depressions bring heavy monsoon rain.' },
+    { s: 'MH', n: 'Maharashtra',             mm: 1100, c: 3, r: 5, t: 'Wet Western Ghats, with a rain-shadow region to the east.' },
+    { s: 'AT', n: 'Andhra Pradesh & Telangana', mm: 940, c: 4, r: 5, t: 'Gets both south-west and north-east monsoon rain.' },
+    { s: 'GA', n: 'Konkan & Goa',            mm: 3000, c: 2, r: 6, t: 'West coast, with some of the heaviest monsoon rain in India.' },
+    { s: 'KA', n: 'Karnataka',               mm: 1150, c: 3, r: 6, t: 'Very wet coast and Ghats, drier interior plateau.' },
+    { s: 'KL', n: 'Kerala',                  mm: 3000, c: 3, r: 7, t: 'Monsoon arrives here first, usually around 1 June.' },
+    { s: 'TN', n: 'Tamil Nadu',              mm: 960,  c: 4, r: 7, t: 'Gets most of its rain from the north-east monsoon (Oct\u2013Dec).' }
+  ];
+
+  var PLACES = [
+    { r: 'Mawsynram, Meghalaya',        mm: 11871, trend: '+1.2%', zone: 'Tropical monsoon' },
+    { r: 'Cherrapunji, Meghalaya',      mm: 11430, trend: '+0.8%', zone: 'Tropical monsoon' },
+    { r: 'Agumbe, Karnataka',           mm: 7600,  trend: '\u22120.6%', zone: 'Western Ghats rainforest' },
+    { r: 'Mahabaleshwar, Maharashtra',  mm: 6000,  trend: '\u22120.9%', zone: 'Western Ghats' },
+    { r: 'Kerala (state average)',      mm: 3000,  trend: '\u22121.4%', zone: 'Tropical wet' },
+    { r: 'North-East India',            mm: 2500,  trend: '\u22120.7%', zone: 'Humid subtropical' },
+    { r: 'West Bengal',                 mm: 1750,  trend: '+0.4%', zone: 'Tropical wet and dry' },
+    { r: 'Gangetic Plain (UP)',         mm: 990,   trend: '\u22120.3%', zone: 'Humid subtropical' },
+    { r: 'Jaisalmer, Rajasthan',        mm: 210,   trend: '+0.6%', zone: 'Hot desert' },
+    { r: 'Leh, Ladakh',                 mm: 100,   trend: '+0.2%', zone: 'Cold desert' }
+  ];
+
+  /* ───────────────── statistics (what NumPy / SciPy did in Python) ───────────────── */
+  var mean = sum(annual) / N;
+  var sd = Math.sqrt(sum(annual.map(function (v) { return (v - mean) * (v - mean); })) / N);
+  var sx = 0, sy = 0, sxy = 0, sxx = 0, syy = 0;
+  annual.forEach(function (v, i) { sx += i; sy += v; sxy += i * v; sxx += i * i; syy += v * v; });
+  var slope = (N * sxy - sx * sy) / (N * sxx - sx * sx);
+  var intercept = (sy - slope * sx) / N;
+  var rval = (N * sxy - sx * sy) / Math.sqrt((N * sxx - sx * sx) * (N * syy - sy * sy));
+  var trendLine = annual.map(function (_, i) { return intercept + slope * i; });
+  var ma10 = annual.map(function (_, i) {
+    return i < 9 ? null : sum(annual.slice(i - 9, i + 1)) / 10;
+  });
+  var iMax = annual.indexOf(Math.max.apply(null, annual));
+  var iMin = annual.indexOf(Math.min.apply(null, annual));
+  var outliers = annual.filter(function (v) { return Math.abs(v - mean) > sd; }).length;
+
+  function seasonShares(data) {
+    var total = sum(data);
+    return SEASONS.map(function (s) {
+      var mm = sum(s.months.map(function (m) { return data[m]; }));
+      return { name: s.name, color: s.color, mm: mm, pct: total ? mm / total * 100 : 0 };
+    });
+  }
+  var allShares = seasonShares(REGIONS.all.data);
+  var peakIdx = REGIONS.all.data.indexOf(Math.max.apply(null, REGIONS.all.data));
+
+  /* ───────────────── bind numbers into the page ───────────────── */
+  bind('years', N + ' yr');
+  bind('zones', String(TILES.length));
+  bind('slopeHero', sign(slope, 2) + ' mm');
+  bind('peakMonth', MONTHS[peakIdx]);
+  bind('mean', fmt(mean) + ' mm');
+  bind('slope', sign(slope, 2) + ' mm/yr');
+  bind('slopeSub', (slope < 0 ? '\u25BC Slight decline' : '\u25B2 Slight increase') + ' \u2248 ' + sign(slope * 10, 1) + ' mm per decade');
+  bind('monsoonPct', Math.round(allShares[2].pct) + '%');
+  bind('slopeStat', sign(slope, 3) + ' mm/yr');
+  bind('decade', sign(slope * 10, 2) + ' mm');
+  bind('rval', rval.toFixed(2));
+  bind('r2', (rval * rval).toFixed(3));
+  bind('sd', fmt(sd) + ' mm');
+  bind('cv', (sd / mean * 100).toFixed(1) + '%');
+  bind('outliers', outliers + ' of ' + N);
+  bind('wetYear', YEARS[iMax] + ' (' + fmt(annual[iMax]) + ' mm)');
+  bind('dryYear', YEARS[iMin] + ' (' + fmt(annual[iMin]) + ' mm)');
+
+  /* ───────────────── canvas utilities ───────────────── */
+  var redrawers = [];
+
+  function setupCanvas(canvas) {
+    var dpr = Math.max(1, window.devicePixelRatio || 1);
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    if (!w || !h) return null;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    var ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx: ctx, w: w, h: h };
+  }
+
+  function niceNum(x) {
+    var exp = Math.floor(Math.log(x) / Math.LN10);
+    var f = x / Math.pow(10, exp);
+    var nf = f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10;
+    return nf * Math.pow(10, exp);
+  }
+  function niceRange(min, max, ticks) {
+    if (max - min < 1e-9) { max = min + 1; }
+    var step = niceNum((max - min) / (ticks - 1));
+    return { lo: Math.floor(min / step) * step, hi: Math.ceil(max / step) * step, step: step };
+  }
+
+  function showTip(tip, html, x, y, boxW) {
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    var tw = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = clamp(x - tw / 2, 4, Math.max(4, boxW - tw - 4)) + 'px';
+    tip.style.top = Math.max(4, y - th - 10) + 'px';
+  }
+  function hideTip(tip) { if (tip) tip.style.display = 'none'; }
+
+  var AXIS = '#55607a';
+  var GRID = 'rgba(11,42,111,0.10)';
+
+  /* ───────────────── line chart ───────────────── */
+  function lineChart(canvas, tip, cfg) {
+    var pad = { l: 54, r: 14, t: 14, b: 28 };
+    var hover = -1;
+    var geo = null;
+
+    function draw() {
+      var s = setupCanvas(canvas);
+      if (!s) return;
+      var ctx = s.ctx, w = s.w, h = s.h;
+      var pw = w - pad.l - pad.r, ph = h - pad.t - pad.b;
+      var n = cfg.labels.length;
+
+      var mn = Infinity, mx = -Infinity;
+      cfg.series.forEach(function (se) {
+        se.data.forEach(function (v) { if (v != null) { if (v < mn) mn = v; if (v > mx) mx = v; } });
+      });
+      if (cfg.band) { mn = Math.min(mn, cfg.band.lo); mx = Math.max(mx, cfg.band.hi); }
+      var rg = niceRange(mn, mx, 5);
+      var X = function (i) { return pad.l + pw * i / (n - 1); };
+      var Y = function (v) { return pad.t + ph * (1 - (v - rg.lo) / (rg.hi - rg.lo)); };
+      geo = { pw: pw, n: n, X: X, Y: Y, w: w };
+
+      /* grid + y labels */
+      ctx.font = '11px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'right';
+      for (var v = rg.lo; v <= rg.hi + rg.step * 0.001; v += rg.step) {
+        var yy = Y(v);
+        ctx.strokeStyle = GRID; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(w - pad.r, yy); ctx.stroke();
+        ctx.fillStyle = AXIS;
+        ctx.fillText(fmt(v), pad.l - 8, yy);
+      }
+      /* x labels */
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = AXIS;
+      for (var i = 0; i < n; i += 20) {
+        ctx.fillText(String(cfg.labels[i]), X(i), h - pad.b + 8);
+      }
+
+      /* ±1σ band */
+      if (cfg.band) {
+        ctx.fillStyle = 'rgba(21,101,192,0.13)';
+        ctx.fillRect(pad.l, Y(cfg.band.hi), pw, Y(cfg.band.lo) - Y(cfg.band.hi));
+        ctx.strokeStyle = 'rgba(21,101,192,0.45)'; ctx.setLineDash([5, 4]); ctx.lineWidth = 1;
+        [cfg.band.hi, cfg.band.lo].forEach(function (b) {
+          ctx.beginPath(); ctx.moveTo(pad.l, Y(b)); ctx.lineTo(w - pad.r, Y(b)); ctx.stroke();
+        });
+        ctx.setLineDash([]);
+      }
+      if (cfg.hline != null) {
+        ctx.strokeStyle = 'rgba(11,42,111,0.55)'; ctx.setLineDash([2, 3]); ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(pad.l, Y(cfg.hline)); ctx.lineTo(w - pad.r, Y(cfg.hline)); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      /* series */
+      cfg.series.forEach(function (se) {
+        if (se.fill) {
+          var g = ctx.createLinearGradient(0, pad.t, 0, pad.t + ph);
+          g.addColorStop(0, se.fill); g.addColorStop(1, 'rgba(91,155,240,0)');
+          ctx.beginPath();
+          ctx.moveTo(X(0), Y(rg.lo));
+          se.data.forEach(function (val, k) { ctx.lineTo(X(k), Y(val)); });
+          ctx.lineTo(X(n - 1), Y(rg.lo));
+          ctx.closePath();
+          ctx.fillStyle = g; ctx.fill();
+        }
+        ctx.beginPath();
+        var started = false;
+        se.data.forEach(function (val, k) {
+          if (val == null) return;
+          if (!started) { ctx.moveTo(X(k), Y(val)); started = true; } else { ctx.lineTo(X(k), Y(val)); }
+        });
+        ctx.strokeStyle = se.color; ctx.lineWidth = se.width || 2;
+        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        ctx.setLineDash(se.dash || []);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      });
+
+      /* highlighted years */
+      if (cfg.highlight) {
+        cfg.series[0].data.forEach(function (val, k) {
+          var col = cfg.highlight(val);
+          if (col) {
+            ctx.beginPath(); ctx.arc(X(k), Y(val), 3.2, 0, Math.PI * 2);
+            ctx.fillStyle = col; ctx.fill();
+            ctx.lineWidth = 1; ctx.strokeStyle = '#fff'; ctx.stroke();
+          }
+        });
+      }
+
+      /* hover */
+      if (hover >= 0) {
+        var hx = X(hover);
+        ctx.strokeStyle = 'rgba(11,42,111,0.35)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(hx, pad.t); ctx.lineTo(hx, pad.t + ph); ctx.stroke();
+        cfg.series.forEach(function (se) {
+          var val = se.data[hover];
+          if (val == null) return;
+          ctx.beginPath(); ctx.arc(hx, Y(val), 4.5, 0, Math.PI * 2);
+          ctx.fillStyle = se.color; ctx.fill();
+          ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+        });
+        var rows = '<b>' + cfg.labels[hover] + '</b>';
+        cfg.series.forEach(function (se) {
+          var val = se.data[hover];
+          if (val != null) {
+            rows += '<br><span style="color:' + se.color + '">\u25CF</span> ' + se.name + ': <b>' + fmt(val) + ' mm</b>';
+          }
+        });
+        var topY = Y(cfg.series[0].data[hover]);
+        showTip(tip, rows, hx, topY, w);
+      } else {
+        hideTip(tip);
+      }
+    }
+
+    function onMove(e) {
+      if (!geo) return;
+      var rect = canvas.getBoundingClientRect();
+      var x = e.clientX - rect.left;
+      var idx = Math.round((x - pad.l) / geo.pw * (geo.n - 1));
+      idx = clamp(idx, 0, geo.n - 1);
+      if (idx !== hover) { hover = idx; draw(); }
+    }
+    function onLeave() { if (hover !== -1) { hover = -1; draw(); } }
+    canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerdown', onMove);
+    canvas.addEventListener('pointerleave', onLeave);
+    canvas.addEventListener('pointercancel', onLeave);
+
+    redrawers.push(draw);
+    draw();
+    return { draw: draw };
+  }
+
+  /* ───────────────── bar chart (monthly) ───────────────── */
+  function roundedTop(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h);
+    ctx.beginPath();
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h);
+    ctx.closePath();
+  }
+
+  function barChart(canvas, tip) {
+    var pad = { l: 52, r: 10, t: 16, b: 28 };
+    var cur = new Array(12).fill(0);
+    var target = new Array(12).fill(0);
+    var hover = -1;
+    var raf = 0;
+    var geo = null;
+
+    function draw() {
+      var s = setupCanvas(canvas);
+      if (!s) return;
+      var ctx = s.ctx, w = s.w, h = s.h;
+      var pw = w - pad.l - pad.r, ph = h - pad.t - pad.b;
+      var mx = Math.max.apply(null, cur.concat([1]));
+      var rg = niceRange(0, mx, 5);
+      var Y = function (v) { return pad.t + ph * (1 - (v - rg.lo) / (rg.hi - rg.lo)); };
+      var slot = pw / 12, bw = slot * 0.66;
+      geo = { slot: slot, Y: Y, w: w };
+
+      ctx.font = '11px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      for (var v = rg.lo; v <= rg.hi + rg.step * 0.001; v += rg.step) {
+        var yy = Y(v);
+        ctx.strokeStyle = GRID; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(w - pad.r, yy); ctx.stroke();
+        ctx.fillStyle = AXIS; ctx.fillText(fmt(v), pad.l - 8, yy);
+      }
+
+      var tmax = Math.max.apply(null, target.concat([1]));
+      var base = Y(rg.lo);
+      cur.forEach(function (val, i) {
+        var x = pad.l + slot * i + (slot - bw) / 2;
+        var y = Y(val);
+        var bh = base - y;
+        if (bh > 0.5) {
+          var rel = target[i] / tmax;
+          var c0, c1;
+          if (rel >= 0.6) { c0 = '#ffb347'; c1 = '#ff7a00'; }
+          else if (rel >= 0.25) { c0 = '#55b0ff'; c1 = '#1565c0'; }
+          else { c0 = '#bcdcf8'; c1 = '#7fb2e8'; }
+          var g = ctx.createLinearGradient(0, y, 0, base);
+          g.addColorStop(0, c0); g.addColorStop(1, c1);
+          roundedTop(ctx, x, y, bw, bh, 5);
+          ctx.fillStyle = g; ctx.fill();
+          if (i === hover) { ctx.lineWidth = 2; ctx.strokeStyle = '#0b2a6f'; ctx.stroke(); }
+        }
+        ctx.fillStyle = i === hover ? '#0b2a6f' : AXIS;
+        ctx.font = (i === hover ? '700 ' : '') + '11px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.fillText(MONTHS[i], x + bw / 2, h - pad.b + 8);
+      });
+
+      if (hover >= 0) {
+        var hx = pad.l + slot * hover + slot / 2;
+        showTip(tip, '<b>' + MONTHS[hover] + '</b>: ' + fmt(target[hover]) + ' mm', hx, Y(cur[hover]), w);
+      } else {
+        hideTip(tip);
+      }
+    }
+
+    function update(data) {
+      target = data.slice();
+      cancelAnimationFrame(raf);
+      if (reduceMotion) { cur = target.slice(); draw(); return; }
+      var from = cur.slice(), t0 = performance.now(), dur = 500;
+      function step(now) {
+        var p = Math.min(1, (now - t0) / dur);
+        var e = 1 - Math.pow(1 - p, 3);
+        cur = from.map(function (f, i) { return f + (target[i] - f) * e; });
+        draw();
+        if (p < 1) raf = requestAnimationFrame(step);
+      }
+      raf = requestAnimationFrame(step);
+    }
+
+    function onMove(e) {
+      if (!geo) return;
+      var rect = canvas.getBoundingClientRect();
+      var idx = Math.floor((e.clientX - rect.left - pad.l) / geo.slot);
+      if (idx < 0 || idx > 11) idx = -1;
+      if (idx !== hover) { hover = idx; draw(); }
+    }
+    function onLeave() { if (hover !== -1) { hover = -1; draw(); } }
+    canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerdown', onMove);
+    canvas.addEventListener('pointerleave', onLeave);
+    canvas.addEventListener('pointercancel', onLeave);
+
+    redrawers.push(draw);
+    return { update: update, draw: draw };
+  }
+
+  /* ───────────────── doughnut ───────────────── */
+  function donutChart(canvas) {
+    var parts = [];
+    var hover = -1;
+    var geo = null;
+
+    function draw() {
+      var s = setupCanvas(canvas);
+      if (!s || !parts.length) return;
+      var ctx = s.ctx, w = s.w, h = s.h;
+      var cx = w / 2, cy = h / 2;
+      var R = Math.min(w, h) / 2 - 8;
+      var lw = R * 0.36;
+      var rad = R - lw / 2;
+      geo = { cx: cx, cy: cy, R: R, r: R - lw };
+      var total = sum(parts.map(function (p) { return p.pct; })) || 1;
+      var a = -Math.PI / 2;
+      var gap = 0.02;
+      parts.forEach(function (p, i) {
+        var ang = p.pct / total * Math.PI * 2;
+        if (ang > 0.0001) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, rad, a + gap / 2, a + ang - gap / 2);
+          ctx.lineWidth = i === hover ? lw + 8 : lw;
+          ctx.strokeStyle = p.color;
+          ctx.lineCap = 'butt';
+          ctx.stroke();
+        }
+        a += ang;
+      });
+      var show = hover >= 0 ? parts[hover] : parts[2];
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#0b2a6f';
+      ctx.font = '800 ' + Math.round(R * 0.36) + 'px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+      ctx.fillText(Math.round(show.pct) + '%', cx, cy - R * 0.06);
+      ctx.fillStyle = '#55607a';
+      ctx.font = '600 ' + Math.max(10, Math.round(R * 0.11)) + 'px system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
+      ctx.fillText(show.name.split(' (')[0], cx, cy + R * 0.22);
+    }
+
+    function onMove(e) {
+      if (!geo || !parts.length) return;
+      var rect = canvas.getBoundingClientRect();
+      var dx = e.clientX - rect.left - geo.cx, dy = e.clientY - rect.top - geo.cy;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var idx = -1;
+      if (dist >= geo.r - 4 && dist <= geo.R + 6) {
+        var ang = Math.atan2(dy, dx) + Math.PI / 2;
+        if (ang < 0) ang += Math.PI * 2;
+        var total = sum(parts.map(function (p) { return p.pct; })) || 1;
+        var acc = 0;
+        for (var i = 0; i < parts.length; i++) {
+          acc += parts[i].pct / total * Math.PI * 2;
+          if (ang <= acc) { idx = i; break; }
+        }
+      }
+      if (idx !== hover) { hover = idx; draw(); }
+    }
+    function onLeave() { if (hover !== -1) { hover = -1; draw(); } }
+    canvas.addEventListener('pointermove', onMove);
+    canvas.addEventListener('pointerdown', onMove);
+    canvas.addEventListener('pointerleave', onLeave);
+    canvas.addEventListener('pointercancel', onLeave);
+
+    redrawers.push(draw);
+    return { set: function (p) { parts = p; draw(); }, draw: draw };
+  }
+
+  /* ───────────────── build charts ───────────────── */
+  var trendCanvas = $('#trendChart');
+  if (trendCanvas) {
+    lineChart(trendCanvas, $('#trendTip'), {
+      labels: YEARS,
+      series: [
+        { name: 'Annual', data: annual, color: '#5b9bf0', width: 1.3, fill: 'rgba(91,155,240,0.28)' },
+        { name: '10-yr avg', data: ma10, color: '#ff7a00', width: 2.6 },
+        { name: 'Trend', data: trendLine, color: '#138808', width: 2.2, dash: [7, 5] }
+      ]
+    });
+  }
+
+  var varCanvas = $('#varChart');
+  if (varCanvas) {
+    lineChart(varCanvas, $('#varTip'), {
+      labels: YEARS,
+      series: [{ name: 'Annual', data: annual, color: '#1565c0', width: 1.5 }],
+      band: { lo: mean - sd, hi: mean + sd },
+      hline: mean,
+      highlight: function (v) { return v > mean + sd ? '#14a38b' : v < mean - sd ? '#e5484d' : null; }
+    });
+  }
+
+  /* ───────────────── monsoon section ───────────────── */
+  var monthly = null, donut = null;
+  var monthlyCanvas = $('#monthlyChart'), seasonCanvas = $('#seasonChart');
+  if (monthlyCanvas) monthly = barChart(monthlyCanvas, $('#monthlyTip'));
+  if (seasonCanvas) donut = donutChart(seasonCanvas);
+
+  function selectRegion(key) {
+    var reg = REGIONS[key];
+    if (!reg) return;
+    var total = sum(reg.data);
+    var pk = reg.data.indexOf(Math.max.apply(null, reg.data));
+    var shares = seasonShares(reg.data);
+
+    $('#regionTitle').textContent = 'Monthly rainfall pattern \u2014 ' + reg.name;
+    $('#monthlyNote').innerHTML = 'Annual total: <b>' + fmt(total) + ' mm</b> &middot; Peak month: <b>' +
+      MONTHS[pk] + ' (' + fmt(reg.data[pk]) + ' mm)</b> &middot; Monsoon share: <b>' + Math.round(shares[2].pct) + '%</b>';
+
+    if (monthly) monthly.update(reg.data);
+    if (donut) donut.set(shares);
+
+    var ul = $('#seasonLegend');
+    if (ul) {
+      ul.innerHTML = shares.map(function (s) {
+        return '<li><span class="dot" style="background:' + s.color + '"></span><span class="nm">' + s.name +
+          '</span><span class="pc">' + s.pct.toFixed(1) + '%</span></li>';
+      }).join('');
+    }
+  }
+
+  $$('#regionTabs .tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      $$('#regionTabs .tab').forEach(function (b) { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
+      btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
+      selectRegion(btn.getAttribute('data-region'));
+    });
+  });
+  selectRegion('all');
+
+  /* ───────────────── tile map ───────────────── */
+  function tileColor(mm) {
+    var t = Math.pow(Math.min(mm / 3000, 1), 0.7);
+    var L = 93 - 65 * t;
+    return { bg: 'hsl(205,85%,' + L.toFixed(1) + '%)', fg: L < 58 ? '#ffffff' : '#0b2a6f' };
+  }
+  var tilesEl = $('#tiles'), tileInfo = $('#tileInfo');
+  if (tilesEl) {
+    var ranked = TILES.slice().sort(function (a, b) { return b.mm - a.mm; });
+    var currentTile = null;
+    TILES.forEach(function (t) {
+      var col = tileColor(t.mm);
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'tile';
+      b.style.gridColumn = String(t.c);
+      b.style.gridRow = String(t.r);
+      b.style.background = col.bg;
+      b.style.color = col.fg;
+      b.setAttribute('aria-label', t.n + ', about ' + fmt(t.mm) + ' millimetres a year');
+      b.innerHTML = '<b>' + t.s + '</b><span>' + fmt(t.mm) + '</span>';
+      function show() {
+        if (currentTile) currentTile.classList.remove('on');
+        currentTile = b; b.classList.add('on');
+        var rank = ranked.indexOf(t) + 1;
+        if (tileInfo) {
+          tileInfo.innerHTML = '<b>' + t.n + '</b> \u2014 about <b>' + fmt(t.mm) + ' mm</b> a year (rank ' + rank +
+            ' of ' + TILES.length + ')<br><span style="color:#55607a">' + t.t + '</span>';
+        }
+      }
+      b.addEventListener('mouseenter', show);
+      b.addEventListener('focus', show);
+      b.addEventListener('click', show);
+      tilesEl.appendChild(b);
+    });
+  }
+
+  /* ───────────────── table ───────────────── */
+  var tbody = $('#regionTable');
+  if (tbody) {
+    var maxMM = Math.max.apply(null, PLACES.map(function (p) { return p.mm; }));
+    tbody.innerHTML = PLACES.map(function (p, i) {
+      var pct = Math.max(2, Math.round(p.mm / maxMM * 100));
+      var up = p.trend.charAt(0) === '+';
+      return '<tr><td>' + String(i + 1).padStart(2, '0') + '</td>' +
+        '<td class="td-name">' + p.r + '</td>' +
+        '<td class="td-mm">' + fmt(p.mm) + ' mm</td>' +
+        '<td class="td-bar"><div style="width:' + pct + '%"></div></td>' +
+        '<td class="' + (up ? 'up' : 'dn') + '">' + (up ? '\u25B2 ' : '\u25BC ') + p.trend + '</td>' +
+        '<td>' + p.zone + '</td></tr>';
+    }).join('');
+  }
+
+  /* ───────────────── year explorer ───────────────── */
+  var range = $('#yearRange');
+  function explore() {
+    if (!range) return;
+    var yr = +range.value;
+    var v = annual[yr - 1901];
+    if (v == null) return;
+    var dev = (v - mean) / mean * 100;
+    var cat = v > mean + sd ? 'Wet year' : v < mean - sd ? 'Dry year' : 'Near normal';
+    var color = v > mean + sd ? '#14a38b' : v < mean - sd ? '#e5484d' : '#1565c0';
+    $('#yearLabel').textContent = String(yr);
+    $('#yearVal').textContent = fmt(v) + ' mm';
+    $('#yearVal').style.color = color;
+    $('#yearDev').textContent = sign(dev, 1) + '%';
+    $('#yearCat').textContent = cat;
+    var half = clamp(Math.abs(v - mean) / (3 * sd), 0, 1) * 50;
+    var bar = $('#yearBar');
+    bar.style.background = color;
+    bar.style.width = half + '%';
+    bar.style.left = (v >= mean ? 50 : 50 - half) + '%';
+  }
+  if (range) { range.addEventListener('input', explore); explore(); }
+
+  /* ───────────────── flag chakra (24 spokes) ───────────────── */
+  var chakra = $('#chakra');
+  if (chakra) {
+    var NS = 'http://www.w3.org/2000/svg';
+    for (var k = 0; k < 24; k++) {
+      var ang = k * Math.PI * 2 / 24;
+      var ln = document.createElementNS(NS, 'line');
+      ln.setAttribute('x1', (100 + Math.cos(ang) * 14).toFixed(2));
+      ln.setAttribute('y1', (100 + Math.sin(ang) * 14).toFixed(2));
+      ln.setAttribute('x2', (100 + Math.cos(ang) * 91).toFixed(2));
+      ln.setAttribute('y2', (100 + Math.sin(ang) * 91).toFixed(2));
+      ln.setAttribute('stroke', '#000080');
+      ln.setAttribute('stroke-width', '2.4');
+      chakra.appendChild(ln);
+      var dot = document.createElementNS(NS, 'circle');
+      var a2 = ang + Math.PI / 24;
+      dot.setAttribute('cx', (100 + Math.cos(a2) * 86).toFixed(2));
+      dot.setAttribute('cy', (100 + Math.sin(a2) * 86).toFixed(2));
+      dot.setAttribute('r', '3');
+      dot.setAttribute('fill', '#000080');
+      chakra.appendChild(dot);
+    }
+  }
+
+  /* ───────────────── resize + reveal ───────────────── */
+  function redrawAll() { redrawers.forEach(function (fn) { fn(); }); }
+  var rt = 0;
+  function scheduleRedraw() { clearTimeout(rt); rt = setTimeout(redrawAll, 100); }
+
+  if (typeof ResizeObserver !== 'undefined') {
+    var ro = new ResizeObserver(scheduleRedraw);
+    $$('.chart').forEach(function (el) { ro.observe(el); });
+  } else {
+    window.addEventListener('resize', scheduleRedraw);
+  }
+  window.addEventListener('load', redrawAll);
+
+  var reveals = $$('.reveal');
+  function showAll() { reveals.forEach(function (el) { el.classList.add('in'); }); }
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.08 });
+    reveals.forEach(function (el) { io.observe(el); });
+    setTimeout(showAll, 3500); /* safety net */
+  } else {
+    showAll();
+  }
+})();
+
+</script>
+</body>
+</html>
